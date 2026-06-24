@@ -1,0 +1,111 @@
+/* BaseNode.css
+ *
+ * Design language: "signal board" — a dark canvas where each node type
+ * carries its own accent color, like a wire color on a circuit diagram.
+ * The accent is passed in per-node as the CSS variable --accent and drives
+ * the top edge bar + handle glow. Everything else stays disciplined/neutral
+ * so the accent color is what differentiates node types, not the whole box.
+ */
+
+.base-node {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  background: #161B26;
+  border: 1px solid #262E3F;
+  border-radius: 10px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.02) inset;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color: #E6E9F0;
+  overflow: visible;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.base-node:hover {
+  border-color: color-mix(in srgb, var(--accent) 55%, #262E3F);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5), 0 0 0 1px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
+/* Thin colored strip along the top — the one signature element that ties
+   every node type together while still letting each type read distinctly. */
+.base-node-edge {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  border-radius: 10px 10px 0 0;
+  background: var(--accent);
+}
+
+.base-node-header {
+  padding: 8px 12px 6px;
+  border-bottom: 1px solid #1F2533;
+}
+
+.base-node-title {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.base-node-body {
+  padding: 8px 12px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  overflow: auto;
+}
+
+.base-node-body label {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 11px;
+  color: #7C8597;
+}
+
+.base-node-body span {
+  font-size: 12px;
+  color: #A6AEBF;
+}
+
+.base-node-body input[type="text"],
+.base-node-body select,
+.base-node-body textarea {
+  background: #0F1420;
+  border: 1px solid #262E3F;
+  border-radius: 6px;
+  color: #E6E9F0;
+  font-size: 12px;
+  padding: 5px 7px;
+  outline: none;
+  transition: border-color 0.15s ease;
+  font-family: inherit;
+}
+
+.base-node-body input[type="text"]:focus,
+.base-node-body select:focus,
+.base-node-body textarea:focus {
+  border-color: var(--accent);
+}
+
+.base-node-body input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--accent);
+  align-self: flex-start;
+}
+
+/* ReactFlow Handles: small glowing dots colored per node type, so a
+   connection's color traces back to the node type that emitted it. */
+.base-node-handle {
+  width: 9px;
+  height: 9px;
+  background: var(--accent);
+  border: 2px solid #0B0E14;
+  box-shadow: 0 0 6px var(--accent);
+}

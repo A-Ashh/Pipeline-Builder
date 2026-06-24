@@ -1,0 +1,63 @@
+body {
+  margin: 0;
+  background: #0B0E14;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+.pipeline-toolbar {
+  background: #11151F;
+  border-bottom: 1px solid #1F2533;
+}
+.pipeline-toolbar-chip {
+  border: 1px solid #262E3F;
+  transition: border-color 0.15s ease, transform 0.1s ease;
+}
+
+.pipeline-toolbar-chip:hover {
+  transform: translateY(-1px);
+}
+.react-flow {
+  background: #0B0E14;
+}
+
+.react-flow__attribution {
+  display: none;
+}
+
+.react-flow__controls {
+  background: #161B26;
+  border: 1px solid #262E3F;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+}
+
+.react-flow__controls-button {
+  background: #161B26;
+  border-bottom: 1px solid #262E3F;
+  fill: #E6E9F0;
+  color: #E6E9F0;
+}
+
+.react-flow__controls-button:hover {
+  background: #1F2533;
+}
+
+.react-flow__minimap {
+  background: #11151F !important;
+  border: 1px solid #262E3F;
+  border-radius: 8px;
+}
+
+.react-flow__edge-path {
+  stroke: #3A4358;
+  stroke-width: 1.5;
+}
+
+.react-flow__edge.selected .react-flow__edge-path,
+.react-flow__edge:hover .react-flow__edge-path {
+  stroke: #60A5FA;
+}
+
+.react-flow__connection-path {
+  stroke: #60A5FA;
+}
