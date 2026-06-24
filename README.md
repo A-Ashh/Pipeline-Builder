@@ -1,70 +1,145 @@
-# Getting Started with Create React App
+# Pipeline Builder
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+A visual, node-based pipeline builder — drag nodes onto a canvas, connect them, and validate the resulting graph. Built as a technical assessment, with a focus on making the node system genuinely extensible rather than just functional.
 
-## Available Scripts
+![Tech](https://img.shields.io/badge/frontend-React%20%2B%20ReactFlow-61DAFB)
+![Tech](https://img.shields.io/badge/backend-FastAPI-009688)
+![Tech](https://img.shields.io/badge/state-Zustand-orange)
 
-In the project directory, you can run:
+---
 
-### `npm start`
+## What it does
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+- Drag-and-drop nodes onto a canvas (Input, Output, LLM, Text, Filter, Math, API Call, Conditional, Delay)
+- Connect nodes into a pipeline using typed handles
+- Text nodes support `{{variableName}}` syntax — typing a variable name in double curly braces dynamically creates a new input handle on the node, and the node auto-resizes as content grows
+- Submitting the pipeline sends its nodes/edges to a FastAPI backend, which returns the node count, edge count, and whether the graph is a valid **DAG** (directed acyclic graph)
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+## Why this is interesting
 
-### `npm test`
+The actual engineering problem here isn't "render some boxes" — it's **avoiding the trap of copy-pasting a new component every time you need a new node type**. The four original node types (Input, Output, LLM, Text) shared almost all of their structure but were implemented as four separate, fully duplicated components.
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+This project solves that with a single `BaseNode` component that:
 
-### `npm run build`
+- Owns all shared rendering: the outer card, the title bar, connection handles, and styling
+- Accepts a **declarative field schema** — `{ key, label, type, options }` — and renders the right input (text / select / checkbox) automatically, wiring it straight into global state
+- Falls back to custom `children` only for nodes with genuinely special behavior (like the Text node's variable parsing)
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+The result: most new node types are now just a ~15-line config object, not a new component. Five additional node types (Filter, Math, API Call, Conditional, Delay) were added entirely through this schema — zero new render logic.
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+```js
+// A complete, working node — this is the whole file.
+export const FilterNode = ({ id, data }) => (
+  <BaseNode
+    id={id}
+    data={data}
+    title="Filter"
+    accent="#FBBF24"
+    handles={[
+      { type: 'target', position: Position.Left, id: `${id}-input` },
+      { type: 'source', position: Position.Right, id: `${id}-output` },
+    ]}
+    fields={[
+      { key: 'condition', label: 'Condition', type: 'select', options: ['contains', 'equals', 'startsWith'] },
+    ]}
+  />
+);
+```
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+## Design
 
-### `npm run eject`
+Dark "signal board" theme — each node type carries its own accent color (a thin top-edge bar + glowing handles), so connections visually trace back to the node type that emitted them, similar to wire colors in a circuit diagram.
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+| Node | Accent |
+|---|---|
+| Input | Green |
+| Output | Pink |
+| LLM | Violet |
+| Text | Blue |
+| Filter | Amber |
+| Math | Orange |
+| API Call | Cyan |
+| Conditional | Red |
+| Delay | Slate |
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+## Cycle detection
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+The backend validates the submitted graph using a standard three-color depth-first search (white / gray / black). If DFS revisits a node still marked "in progress" on the current path, that's a back-edge — a cycle — and the pipeline is correctly flagged as not a DAG.
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+```python
+def is_directed_acyclic_graph(nodes, edges):
+    adjacency = {node['id']: [] for node in nodes}
+    for edge in edges:
+        adjacency[edge['source']].append(edge['target'])
 
-## Learn More
+    state = {node['id']: 0 for node in nodes}  # 0=unvisited, 1=visiting, 2=done
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+    def dfs(node_id):
+        if state[node_id] == 1: return False   # back-edge -> cycle
+        if state[node_id] == 2: return True
+        state[node_id] = 1
+        for neighbor in adjacency.get(node_id, []):
+            if not dfs(neighbor):
+                return False
+        state[node_id] = 2
+        return True
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+    return all(dfs(n['id']) for n in nodes if state[n['id']] == 0)
+```
 
-### Code Splitting
+## Project structure
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+```
+.
+├── backend/
+│   └── main.py          # FastAPI app: /pipelines/parse endpoint, DAG check
+└── frontend/
+    └── src/
+        ├── nodes/
+        │   ├── BaseNode.js     # shared abstraction (rendering + state wiring)
+        │   ├── BaseNode.css    # shared node styling
+        │   ├── inputNode.js
+        │   ├── outputNode.js
+        │   ├── llmNode.js
+        │   ├── textNode.js     # custom: variable parsing + auto-resize
+        │   ├── filterNode.js
+        │   ├── mathNode.js
+        │   ├── apiNode.js
+        │   ├── conditionalNode.js
+        │   └── delayNode.js
+        ├── ui.js          # ReactFlow canvas + node type registry
+        ├── toolbar.js     # draggable node palette
+        ├── submit.js      # posts pipeline to backend, shows result
+        ├── store.js       # Zustand store (nodes, edges, field updates)
+        └── App.js / App.css
+```
 
-### Analyzing the Bundle Size
+## Running locally
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+**Backend**
+```bash
+cd backend
+pip install fastapi uvicorn python-multipart
+uvicorn main:app --reload
+```
+Runs on `http://127.0.0.1:8000`.
+<img width="1101" height="582" alt="image" src="https://github.com/user-attachments/assets/de59edca-4e7e-4fb8-bbd6-68bddbd449ed" />
 
-### Making a Progressive Web App
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+**Frontend**
+```bash
+cd frontend
+npm install
+npm start
+```
+Runs on `http://localhost:3000`.
+<img width="1152" height="598" alt="image" src="https://github.com/user-attachments/assets/fd0d1f51-d17b-4f8a-af27-dfcf8c1e69ec" />
+<img width="1102" height="595" alt="image" src="https://github.com/user-attachments/assets/1f0cab01-bdbb-4db0-b823-b3dc74bd04a1" />
 
-### Advanced Configuration
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+Both need to be running simultaneously — the frontend posts pipeline data to the backend on Submit.
 
-### Deployment
+## Stack
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+- **Frontend:** React, [ReactFlow](https://reactflow.dev/), Zustand
+- **Backend:** FastAPI, Python
